@@ -8,8 +8,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings("unchecked")
 public class LazyLoadingJava {
-    private ConcurrentHashMap<Class, Object> instanciatedObjectMap = new ConcurrentHashMap<>();
-    private ConcurrentHashMap<Class, LazySetter> lazyObjectMap = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Class, Object> instancesMap = new ConcurrentHashMap<>();
+    private ConcurrentHashMap<Class, LazySetter> lazyInitializerMap = new ConcurrentHashMap<>();
 
     public interface Callback<T> {
         void onInstanceReceived(T instance);
@@ -20,35 +20,35 @@ public class LazyLoadingJava {
     }
 
     public <T> void addInstance(Class clazz, T instance) {
-        if (instanciatedObjectMap.containsKey(clazz)) {
+        if (instancesMap.containsKey(clazz)) {
             Log.w(this.getClass().toString(), "Instance already added in the list, erasing the previous one");
         }
 
-        instanciatedObjectMap.put(clazz, instance);
+        instancesMap.put(clazz, instance);
     }
 
     public <T> void addLazy(Class clazz, LazySetter<T> lazySetter) {
-        if (lazyObjectMap.containsKey(clazz)) {
+        if (lazyInitializerMap.containsKey(clazz)) {
             Log.w(this.getClass().toString(), "LazySetter already added to the list, erasing the previous one");
-            if (instanciatedObjectMap.containsKey(clazz)) {
-                instanciatedObjectMap.remove(clazz);
+            if (instancesMap.containsKey(clazz)) {
+                instancesMap.remove(clazz);
             }
         }
 
-        lazyObjectMap.put(clazz, lazySetter);
+        lazyInitializerMap.put(clazz, lazySetter);
     }
 
 
     public <T> T get(Class<T> clazz) {
-        if (instanciatedObjectMap.containsKey(clazz)) {
-            return (T) instanciatedObjectMap.get(clazz);
-        } else if (lazyObjectMap.containsKey(clazz)) {
+        if (instancesMap.containsKey(clazz)) {
+            return (T) instancesMap.get(clazz);
+        } else if (lazyInitializerMap.containsKey(clazz)) {
             synchronized (clazz) {
                 createClassInstance(clazz);
             }
 
-            if (instanciatedObjectMap.containsKey(clazz)) {
-                return (T) instanciatedObjectMap.get(clazz);
+            if (instancesMap.containsKey(clazz)) {
+                return (T) instancesMap.get(clazz);
             }
         }
 
@@ -56,10 +56,10 @@ public class LazyLoadingJava {
     }
 
     private <T> void createClassInstance(Class<T> clazz) {
-        if (!instanciatedObjectMap.containsKey(clazz)) {
-            Object instance = lazyObjectMap.get(clazz).get();
+        if (!instancesMap.containsKey(clazz)) {
+            Object instance = lazyInitializerMap.get(clazz).get();
             if (instance != null) {
-                instanciatedObjectMap.put(clazz, instance);
+                instancesMap.put(clazz, instance);
             }
         }
     }
