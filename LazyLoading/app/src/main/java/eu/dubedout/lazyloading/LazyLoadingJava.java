@@ -1,6 +1,8 @@
 package eu.dubedout.lazyloading;
 
 import android.os.Debug;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import java.util.concurrent.ConcurrentHashMap;
@@ -63,9 +65,20 @@ public class LazyLoadingJava {
         }
     }
 
-    public <T> void get(Class<T> clazz, ResponseHandler<T> responseHandler) {
-        T myInstance = (T) new Object();
-        responseHandler.onInstanceReceived(myInstance);
+    public <T> void get(final Class<T> clazz, final ResponseHandler<T> responseHandler) {
+        final Handler uiThreadHandler = new Handler(Looper.getMainLooper());
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                final T instance = get(clazz);
+                uiThreadHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        responseHandler.onInstanceReceived(instance);
+                    }
+                });
+            }
+        }).start();
     }
 
 }
